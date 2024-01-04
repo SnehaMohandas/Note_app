@@ -1,7 +1,6 @@
-// notes_provider.dart
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:notes_app/note_g.dart';
+import 'package:notes_app/models/note_model.dart';
 
 class NotesProvider with ChangeNotifier {
   List<Note> _notes = [];
@@ -24,26 +23,18 @@ class NotesProvider with ChangeNotifier {
   }
 
   void editNote(Note updatedNote) {
-    print(updatedNote.id);
-    // Get the Hive box
     final box = Hive.box<Note>('notes');
-    print("boxx===>${box.values.first.id}");
     var existingNotess = box.get(box.values.first.id);
 
     print(existingNotess);
 
-    // Get the existing note from the box
     Note existingNote = box.get(updatedNote.id)!;
-    print("exxx==.>${existingNote}");
 
-    // Update the properties of the existing note
-    existingNote!.title = updatedNote.title;
+    existingNote.title = updatedNote.title;
     existingNote.description = updatedNote.description;
 
-    // Save the updated note back to Hive
     box.put(existingNote.id, existingNote);
 
-    // Notify listeners about the change
     notifyListeners();
   }
 

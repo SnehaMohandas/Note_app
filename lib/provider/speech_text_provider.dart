@@ -1,13 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:notes_app/note_g.dart';
+import 'package:notes_app/models/note_model.dart';
 import 'package:notes_app/provider/notes_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class SpeechProvider with ChangeNotifier {
-  stt.SpeechToText? _speech;
+  stt.SpeechToText? speech;
   bool _isListening = false;
   bool _isTitle = false;
 
@@ -20,13 +22,9 @@ class SpeechProvider with ChangeNotifier {
   final TextEditingController _descriptionController = TextEditingController();
 
   SpeechProvider() {
-    _speech = stt.SpeechToText();
+    speech = stt.SpeechToText();
     //_initialize();
   }
-  // void _initialize() {
-  //   getSavedNotes();
-  //   // Do any additional initialization or processing with savedNotes if needed
-  // }
 
   bool get isListening => _isListening;
   String get title => _title;
@@ -50,10 +48,9 @@ class SpeechProvider with ChangeNotifier {
 
   Future<void> startListening(String field) async {
     if (!_isListening) {
-      bool available = await _speech!.initialize(
-        onStatus: (val) => print('onStatus: $val'),
-        onError: (val) => print('onError: $val'),
-      );
+      bool available = await speech!.initialize(
+          onStatus: (val) => print('onStatus: $val'),
+          onError: (val) => print('onError: $val'));
 
       if (available) {
         _isListening = true;
@@ -66,14 +63,12 @@ class SpeechProvider with ChangeNotifier {
         }
         notifyListeners();
 
-        _speech!.listen(
+        speech!.listen(
           onResult: (val) {
             if (val.recognizedWords.isNotEmpty) {
               if (field == 'title') {
                 title = val.recognizedWords;
                 titleController.text = title;
-
-                print(title);
               } else if (field == 'description') {
                 description = val.recognizedWords;
                 descriptionController.text = description;
@@ -82,12 +77,31 @@ class SpeechProvider with ChangeNotifier {
           },
         );
       }
+      _timeoutTimer = Timer(Duration(seconds: 5), () {
+        stopListening();
+      });
     } else {
       _isListening = false;
       _isDescription = false;
+
       _isTitle = false;
+
       notifyListeners();
-      _speech!.stop();
+      speech!.stop();
+    }
+  }
+
+  Timer? _timeoutTimer;
+  void stopListening() {
+    _isListening = false;
+    _isDescription = false;
+    _isTitle = false;
+    notifyListeners();
+    speech!.stop();
+
+    // timeout timer if it's active
+    if (_timeoutTimer != null && _timeoutTimer!.isActive) {
+      _timeoutTimer!.cancel();
     }
   }
 
@@ -107,9 +121,7 @@ class SpeechProvider with ChangeNotifier {
         description: descriptionController.text,
         datetime: DateTime.now());
     box.put(noteId, note);
-    print(note);
 
-    // Notify NotesProvider about the new note
     final notesProvider = Provider.of<NotesProvider>(context, listen: false);
     notesProvider.setNotes(getSavedNotes());
     description = "";
